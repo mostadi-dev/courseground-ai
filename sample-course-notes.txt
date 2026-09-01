@@ -1,0 +1,1 @@
+CourseGround test document. Students learn systematic program design, computational thinking, and responsible use of AI.
