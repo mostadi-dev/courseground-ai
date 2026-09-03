@@ -19,6 +19,7 @@ from app.models import (
 from app.permissions import require_roles
 from app.schemas import DocumentResponse
 from app.security import get_current_user
+from app.services.ingestion import ingest_document
 
 
 router = APIRouter(prefix="/courses", tags=["documents"])
@@ -26,11 +27,12 @@ router = APIRouter(prefix="/courses", tags=["documents"])
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 UPLOAD_ROOT = BACKEND_ROOT / "uploads"
 
+# These formats are currently supported by our text-ingestion service.
+# PDF and DOCX extraction can be added afterward.
 ALLOWED_EXTENSIONS = {
-    ".pdf",
     ".txt",
     ".md",
-    ".docx",
+    ".csv",
 }
 
 MAX_FILE_SIZE = 10 * 1024 * 1024
@@ -84,7 +86,10 @@ def verify_course_access(
 )
 async def upload_document(
     course_id: uuid.UUID,
-    file: Annotated[UploadFile, File(description="Course document")],
+    file: Annotated[
+        UploadFile,
+        File(description="Course document"),
+    ],
     database: Annotated[Session, Depends(get_db)],
     current_user: Annotated[
         User,
@@ -126,7 +131,7 @@ async def upload_document(
     if extension not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="Only PDF, TXT, Markdown, and DOCX files are allowed",
+            detail="Only TXT, Markdown, and CSV files are currently supported",
         )
 
     document_id = uuid.uuid4()
@@ -143,7 +148,7 @@ async def upload_document(
 
                 if size_bytes > MAX_FILE_SIZE:
                     raise HTTPException(
-                        status_code=413,
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                         detail="File cannot exceed 10 MB",
                     )
 
@@ -156,6 +161,7 @@ async def upload_document(
 
     if size_bytes == 0:
         destination.unlink(missing_ok=True)
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="The uploaded file is empty",
@@ -180,6 +186,7 @@ async def upload_document(
 
     try:
         database.commit()
+        database.refresh(document)
     except SQLAlchemyError as error:
         database.rollback()
         destination.unlink(missing_ok=True)
@@ -188,6 +195,10 @@ async def upload_document(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not save the document",
         ) from error
+
+    # Extract text, split it into chunks, generate embeddings through
+    # local Ollama, and store the vectors in PostgreSQL/pgvector.
+    await ingest_document(database, document)
 
     database.refresh(document)
     return document
@@ -200,7 +211,10 @@ async def upload_document(
 def list_documents(
     course_id: uuid.UUID,
     database: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[
+        User,
+        Depends(get_current_user),
+    ],
 ) -> list[Document]:
     course = get_course_or_404(course_id, database)
     verify_course_access(course, current_user, database)

@@ -27,6 +27,7 @@ Mako==1.4.1
 markdown-it-py==4.2.0
 MarkupSafe==3.0.3
 mdurl==0.1.2
+pgvector==0.5.0
 psycopg==3.3.4
 psycopg-binary==3.3.4
 pwdlib==0.3.1

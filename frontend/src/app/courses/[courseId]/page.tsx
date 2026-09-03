@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 import DocumentManager from "@/components/document-manager";
+import InstructorAssistant from "@/components/instructor-assistant";
 
 type Course = {
   id: string;
@@ -26,6 +27,12 @@ export default function CoursePage() {
 
   useEffect(() => {
     async function loadCourse() {
+      if (!courseId) {
+        setError("Course ID is missing");
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const response = await fetch(
           `/api/courses/${courseId}`,
@@ -42,21 +49,23 @@ export default function CoursePage() {
         const data = await response.json();
 
         if (!response.ok) {
-          setError(data.detail ?? "Unable to load the course");
+          setError(
+            data.detail ?? "Unable to load the course",
+          );
           return;
         }
 
         setCourse(data);
       } catch {
-        setError("Unable to connect to the course service");
+        setError(
+          "Unable to connect to the course service",
+        );
       } finally {
         setIsLoading(false);
       }
     }
 
-    if (courseId) {
-      loadCourse();
-    }
+    loadCourse();
   }, [courseId, router]);
 
   if (isLoading) {
@@ -90,13 +99,16 @@ export default function CoursePage() {
         </div>
       </header>
 
-      <section className="mx-auto max-w-6xl px-6 py-10">
+      <div className="mx-auto max-w-6xl px-6 py-10">
         {error ? (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-red-300">
+          <div
+            role="alert"
+            className="rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-red-300"
+          >
             {error}
           </div>
         ) : course ? (
-          <>
+          <div className="space-y-8">
             <section className="rounded-2xl border border-slate-800 bg-slate-900 p-8">
               <div className="flex flex-col justify-between gap-6 md:flex-row md:items-start">
                 <div>
@@ -130,9 +142,18 @@ export default function CoursePage() {
             </section>
 
             <DocumentManager courseId={course.id} />
-          </>
-        ) : null}
-      </section>
+
+            <InstructorAssistant courseId={course.id} />
+          </div>
+        ) : (
+          <div
+            role="alert"
+            className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 text-amber-200"
+          >
+            Course data was not found.
+          </div>
+        )}
+      </div>
     </main>
   );
 }

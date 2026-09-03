@@ -1,0 +1,1 @@
+CourseGround helps instructors create responsible learning activities. Artificial intelligence should support formative feedback, course planning, and student understanding without generating answers for graded assignments. Instructors remain responsible for reviewing all AI-generated content.

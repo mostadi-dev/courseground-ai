@@ -8,8 +8,14 @@ from app.models import DocumentStatus, UserRole
 
 class UserCreate(BaseModel):
     email: EmailStr
-    full_name: str = Field(min_length=2, max_length=200)
-    password: str = Field(min_length=8, max_length=128)
+    full_name: str = Field(
+        min_length=2,
+        max_length=200,
+    )
+    password: str = Field(
+        min_length=8,
+        max_length=128,
+    )
 
 
 class UserResponse(BaseModel):
@@ -34,8 +40,14 @@ class CourseCreate(BaseModel):
         max_length=30,
         pattern=r"^[A-Za-z0-9_-]+$",
     )
-    title: str = Field(min_length=2, max_length=200)
-    description: str | None = Field(default=None, max_length=2000)
+    title: str = Field(
+        min_length=2,
+        max_length=200,
+    )
+    description: str | None = Field(
+        default=None,
+        max_length=2000,
+    )
 
 
 class CourseResponse(BaseModel):
@@ -60,3 +72,26 @@ class DocumentResponse(BaseModel):
     size_bytes: int
     status: DocumentStatus
     created_at: datetime
+
+
+class InstructorAssistantRequest(BaseModel):
+    prompt: str = Field(
+        min_length=5,
+        max_length=2000,
+        description=(
+            "Instructor request grounded in course materials"
+        ),
+    )
+
+
+class AssistantSource(BaseModel):
+    document_id: uuid.UUID
+    filename: str
+    chunk_index: int
+    content: str
+    similarity: float
+
+
+class InstructorAssistantResponse(BaseModel):
+    answer: str
+    sources: list[AssistantSource]
