@@ -10,7 +10,7 @@ from pwdlib import PasswordHash
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.database import get_db
+from app.database import get_db, set_request_database_context
 from app.models import User
 
 
@@ -78,4 +78,9 @@ def get_current_user(
     if user is None or not user.is_active:
         raise credentials_exception()
 
+    set_request_database_context(
+        database,
+        user_id=str(user.id),
+        user_role=user.role.value,
+    )
     return user

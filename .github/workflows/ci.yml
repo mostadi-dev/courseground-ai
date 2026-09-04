@@ -33,6 +33,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql+psycopg://courseground:courseground_ci_password@localhost:5432/courseground
+      APP_DATABASE_URL: postgresql+psycopg://courseground_app:courseground_app_ci_password@localhost:5432/courseground
       JWT_SECRET_KEY: courseground_ci_only_secret_key_not_for_production
       JWT_ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_MINUTES: 60
@@ -65,9 +66,14 @@ jobs:
         working-directory: backend
         run: alembic upgrade head
 
+      - name: Provision limited application database role
+        working-directory: backend
+        run: |
+          python -c "import psycopg; connection = psycopg.connect('postgresql://courseground:courseground_ci_password@localhost:5432/courseground'); connection.execute(\"CREATE ROLE courseground_app LOGIN PASSWORD 'courseground_app_ci_password' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT\"); connection.execute('GRANT USAGE ON SCHEMA public TO courseground_app'); connection.execute('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO courseground_app'); connection.execute('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO courseground_app'); connection.commit(); connection.close()"
+
       - name: Compile backend
         working-directory: backend
-        run: python -m compileall app
+        run: python -m compileall app migrations
 
       - name: Run backend tests
         working-directory: backend
